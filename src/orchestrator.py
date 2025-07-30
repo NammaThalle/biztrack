@@ -83,7 +83,7 @@ def handle_message(message, telegram_date, user_id=None):
         else:
             confirmation = "Transaction logged successfully."
         logger.info(f"Reply after storing: {confirmation}")
-        return confirmation
+        response = confirmation
     elif action == 'add_product':
         # Map LLM synonyms for product fields
         product_name = data.get('name') or data.get('product') or data.get('product_name')
@@ -99,10 +99,10 @@ def handle_message(message, telegram_date, user_id=None):
             if getattr(storage_agent, '_use_neo4j', False) and getattr(storage_agent, '_neo4j_agent', None):
                 logger.info(f"Neo4j update for product addition is now handled via LLM-driven Cypher queries.")
             confirmation = f"Product '{product_name}' added with price {price}."
-            return confirmation
+            response = confirmation
         except Exception as e:
             logger.error(f"Failed to add product: {e}")
-            return f"Sorry, there was an error adding the product: {e}"
+            response = f"Sorry, there was an error adding the product: {e}"
     elif action == 'answer_question':
         from src.storage.sqlite_storage import query_transactions
         facts = query_transactions()
@@ -110,7 +110,7 @@ def handle_message(message, telegram_date, user_id=None):
         question = data.get('question', message)
         reply = qa_agent.answer(question, facts, context)
         logger.info(f"QA reply sent.")
-        return reply
+        response = reply
     elif action == 'chat':
         # Handle different possible formats of chat response
         if isinstance(data, dict):
@@ -123,7 +123,7 @@ def handle_message(message, telegram_date, user_id=None):
             chat_message = "Hello! How can I help you today?"
         
         logger.info(f"Chat reply sent: {chat_message}")
-        return chat_message
+        response = chat_message
     elif action == 'graph_query':
         # LLM-driven Cypher query for Neo4j only
         result = storage_agent.run_graph_query(message, context)
@@ -138,12 +138,12 @@ def handle_message(message, telegram_date, user_id=None):
         # Fallback: if reply is empty, too short, or looks like a raw list/dict, return a default message
         if not formatted_reply or len(str(formatted_reply).strip()) < 5 or str(formatted_reply).strip().startswith('[') or str(formatted_reply).strip().startswith('{'):
             if isinstance(result, list) and not result:
-                return "Action completed successfully, but there is nothing to display."
+                response = "Action completed successfully, but there is nothing to display."
             elif isinstance(result, dict) and 'error' in result:
-                return f"Sorry, there was an error: {result['error']}"
+                response = f"Sorry, there was an error: {result['error']}"
             else:
-                return "Action completed successfully."
-        return formatted_reply
+                response = "Action completed successfully."
+        response = formatted_reply
     else:
         logger.error(f"Unknown action from intent agent: {action}")
         response = "Sorry, I couldn't understand your request. (Unknown action: {action})"

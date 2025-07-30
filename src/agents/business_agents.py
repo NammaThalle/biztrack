@@ -25,7 +25,7 @@ class IntentDetectionAgent(Agent):
             "    - 'cypher_intent': the user's message\n"
             "    - 'cypher': the Cypher query to execute\n"
             "    - any relevant structured data (e.g., for product addition, include a 'product' object with name, price, description)\n"
-            "For 'answer_question', include the question; for 'chat', generate a helpful, friendly, and context-aware reply to the user and include it as the value of the 'message' field.\n"
+            "For 'answer_question', include the question; for 'chat', generate a helpful, friendly, and context-aware reply to the user and include it as the value of the 'message' field. For chat responses, be conversational and contextual - if the user asks 'Anything else?', respond appropriately based on the conversation context.\n"
             "If the user wants to add, update, or query the business graph (e.g., products, vendors, transactions, commissions), use 'graph_query'.\n"
             "IMPORTANT: For any entity with a name (vendor, product, customer), always use a 'normalized_name' property set to toLower(trim(name)) for all MERGE and MATCH operations, and also store the original 'name' property for display.\n"
             f"Message: \"{message}\"{context_str}\n"

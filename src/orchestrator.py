@@ -54,8 +54,10 @@ def handle_message(message, telegram_date, user_id=None):
         intent_json = json.loads(json_str)
         action = intent_json.get('action')
         data = intent_json.get('data', {})
+        logger.info(f"Parsed intent: action={action}, data={data}")
     except Exception as e:
         logger.error(f"Failed to parse intent agent response as JSON: {e}")
+        logger.error(f"Raw response: {intent_response}")
         return chat_agent.reply(f"Sorry, I couldn't understand your request. (Intent agent error: {e})")
 
     if action == 'log_transaction':
@@ -90,7 +92,7 @@ def handle_message(message, telegram_date, user_id=None):
         if not product_name or price is None:
             logger.error(f"Missing product name or price in add_product: {data}")
             return "Sorry, I couldn't add the product. Please specify both name and price."
-        from db import add_product
+        from src.storage.sqlite_storage import add_product
         try:
             add_product(product_name, float(price), description)
             logger.info(f"Product added to SQLite: {product_name}, price: {price}")
@@ -102,6 +104,7 @@ def handle_message(message, telegram_date, user_id=None):
             logger.error(f"Failed to add product: {e}")
             return f"Sorry, there was an error adding the product: {e}"
     elif action == 'answer_question':
+        from src.storage.sqlite_storage import query_transactions
         facts = query_transactions()
         logger.info(f"Facts for QA: {len(facts)} records.")
         question = data.get('question', message)
@@ -109,8 +112,17 @@ def handle_message(message, telegram_date, user_id=None):
         logger.info(f"QA reply sent.")
         return reply
     elif action == 'chat':
-        chat_message = data.get('message') if isinstance(data, dict) else data
-        logger.info(f"Chat reply sent.")
+        # Handle different possible formats of chat response
+        if isinstance(data, dict):
+            chat_message = data.get('message') or data.get('response') or data.get('reply')
+        else:
+            chat_message = data
+        
+        # If no message found, generate a default response
+        if not chat_message or chat_message.strip() == '':
+            chat_message = "Hello! How can I help you today?"
+        
+        logger.info(f"Chat reply sent: {chat_message}")
         return chat_message
     elif action == 'graph_query':
         # LLM-driven Cypher query for Neo4j only

@@ -128,22 +128,48 @@ def handle_message(message, telegram_date, user_id=None):
         # LLM-driven Cypher query for Neo4j only
         result = storage_agent.run_graph_query(message, context)
         logger.info(f"Graph query executed, result: {result}")
-        # Format the result for the user using the ChatAgent
-        formatted_reply = chat_agent.reply(
-            f"User message: {message}\nGraph result: {result}\n"
-            "Generate a clear, concise, and friendly reply for the user. If the result is a list, summarize it. If it's a confirmation, state what was done. If the result is empty, confirm the action or explain that nothing was found.",
-            context
-        )
-        logger.info(f"Formatted reply sent.")
-        # Fallback: if reply is empty, too short, or looks like a raw list/dict, return a default message
-        if not formatted_reply or len(str(formatted_reply).strip()) < 5 or str(formatted_reply).strip().startswith('[') or str(formatted_reply).strip().startswith('{'):
-            if isinstance(result, list) and not result:
-                response = "Action completed successfully, but there is nothing to display."
-            elif isinstance(result, dict) and 'error' in result:
-                response = f"Sorry, there was an error: {result['error']}"
+        
+        # Check if this might be a product addition request without details
+        if any(word in message.lower() for word in ['add', 'create', 'new', 'insert']) and 'product' in message.lower():
+            # If user wants to add a product but didn't specify details, ask for them
+            if not any(word in message.lower() for word in ['price', 'cost', 'amount']):
+                response = "I'd be happy to add a new product! Please tell me the product name and price. For example: 'Add product XYZ for 500 rupees'"
             else:
-                response = "Action completed successfully."
-        response = formatted_reply
+                # Format the result for the user using the ChatAgent
+                formatted_reply = chat_agent.reply(
+                    f"User message: {message}\nGraph result: {result}\n"
+                    "Generate a clear, concise, and friendly reply for the user. If the result is a list, summarize it. If it's a confirmation, state what was done. If the result is empty, confirm the action or explain that nothing was found.",
+                    context
+                )
+                logger.info(f"Formatted reply sent.")
+                # Fallback: if reply is empty, too short, or looks like a raw list/dict, return a default message
+                if not formatted_reply or len(str(formatted_reply).strip()) < 5 or str(formatted_reply).strip().startswith('[') or str(formatted_reply).strip().startswith('{'):
+                    if isinstance(result, list) and not result:
+                        response = "Action completed successfully, but there is nothing to display."
+                    elif isinstance(result, dict) and 'error' in result:
+                        response = f"Sorry, there was an error: {result['error']}"
+                    else:
+                        response = "Action completed successfully."
+                else:
+                    response = formatted_reply
+        else:
+            # Format the result for the user using the ChatAgent
+            formatted_reply = chat_agent.reply(
+                f"User message: {message}\nGraph result: {result}\n"
+                "Generate a clear, concise, and friendly reply for the user. If the result is a list, summarize it. If it's a confirmation, state what was done. If the result is empty, confirm the action or explain that nothing was found.",
+                context
+            )
+            logger.info(f"Formatted reply sent.")
+            # Fallback: if reply is empty, too short, or looks like a raw list/dict, return a default message
+            if not formatted_reply or len(str(formatted_reply).strip()) < 5 or str(formatted_reply).strip().startswith('[') or str(formatted_reply).strip().startswith('{'):
+                if isinstance(result, list) and not result:
+                    response = "Action completed successfully, but there is nothing to display."
+                elif isinstance(result, dict) and 'error' in result:
+                    response = f"Sorry, there was an error: {result['error']}"
+                else:
+                    response = "Action completed successfully."
+            else:
+                response = formatted_reply
     else:
         logger.error(f"Unknown action from intent agent: {action}")
         response = "Sorry, I couldn't understand your request. (Unknown action: {action})"

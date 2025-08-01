@@ -1,34 +1,105 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from src.graph.workflow import BusinessWorkflow
+from src.graph.state import AgentState
 from src.config.bot_config import TELEGRAM_BOT_TOKEN
-from src.storage.sqlite_storage import init_db
-from src.orchestrator import handle_message
-from src.memory.conversation_memory import langchain_memory_manager
-import asyncio
 from src.utils.logger import logger
+from src.utils.gemini_client import gemini_chat_client
+from src.utils.cleanup import ensure_clean_state
 
-async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message.text
-    telegram_date = update.message.date.strftime('%Y-%m-%d')
-    user_id = update.message.from_user.id
-    logger.info(f"Received message from user {user_id}")
-    reply = handle_message(message, telegram_date, user_id)
-    if asyncio.iscoroutine(reply):
-        reply = await reply
-    logger.info(f"Replying to user {user_id}")
-    await update.message.reply_text(str(reply))
+class BusinessTrackerBot:
+    """
+    Business Tracker Bot using LangGraph with automatic message storage via Gemini chat sessions.
+    No manual message storage needed - Gemini maintains conversation history.
+    """
+    
+    def __init__(self):
+        self.workflow = BusinessWorkflow().create_workflow()
+        logger.info("Business Tracker Bot initialized with automatic memory management")
+    
+    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle incoming Telegram messages using LangGraph workflow"""
+        try:
+            message = update.message.text
+            user_id = str(update.message.from_user.name)
+            telegram_date = update.message.date.strftime('%Y-%m-%d')
+            
+            logger.info(f"Received message from user {user_id}: {message}")
+            
+            # Create initial state with automatic context from Gemini
+            initial_state = AgentState(
+                user_id=user_id,
+                message=message
+            )
+            
+            # Execute LangGraph workflow
+            logger.info(f"Executing workflow for user {user_id}")
+            result = await self.workflow.ainvoke(initial_state)
+            
+            # Send response with MarkdownV2 formatting
+            response_text = result.get('response') or "I'm sorry, I couldn't process your request."
+            
+            # Try to send with MarkdownV2 formatting, fallback to plain text if it fails
+            try:
+                await update.message.reply_text(
+                    response_text,
+                    parse_mode='MarkdownV2'
+                )
+            except Exception as format_error:
+                logger.warning(f"MarkdownV2 formatting failed, sending as plain text: {format_error}")
+                # Escape special characters for MarkdownV2 and try again, or send as plain text
+                try:
+                    # Simple escape for common Markdown characters
+                    escaped_text = response_text.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+                    await update.message.reply_text(
+                        escaped_text,
+                        parse_mode='MarkdownV2'
+                    )
+                except Exception:
+                    # Final fallback to plain text
+                    await update.message.reply_text(response_text)
+            
+            logger.info(f"Sent response to user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling message for user {user_id}: {e}")
+            await update.message.reply_text(
+                "I'm sorry, there was an error processing your request. Please try again."
+            )
+    
+    def get_conversation_history(self, user_id: str, limit: int = 10):
+        """Get conversation history from Gemini's chat session"""
+        return gemini_chat_client.get_conversation_history(user_id, limit)
+    
+    def clear_user_history(self, user_id: str):
+        """Clear conversation history for a user"""
+        gemini_chat_client.clear_history(user_id)
+        logger.info(f"Cleared history for user {user_id}")
+    
+    def get_active_users(self):
+        """Get list of users with active chat sessions"""
+        return gemini_chat_client.get_all_users()
 
 def main():
-    logger.info("Initializing database...")
-    init_db()
+    """Initialize and run the Business Tracker Bot"""
+    logger.info("Starting Business Tracker Bot with automatic memory management...")
     
-    # Clean up old memory on startup
-    logger.info("Cleaning up old memory...")
-    langchain_memory_manager.cleanup_old_memory(days_to_keep=30)
+    # Ensure clean state by removing __pycache__ directories
+    ensure_clean_state()
     
+    # Clean up old sessions on startup
+    gemini_chat_client.cleanup_old_sessions(max_sessions=50)
+    
+    # Create bot instance
+    bot = BusinessTrackerBot()
+    
+    # Setup Telegram application
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), on_message))
-    logger.info("Bot is running...")
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), bot.handle_message))
+    
+    logger.info("Business Tracker Bot is running with automatic message storage...")
+    
+    # Start polling
     app.run_polling()
 
 if __name__ == "__main__":

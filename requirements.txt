@@ -1,11 +1,23 @@
+# LangGraph Implementation Requirements
+# Core LangGraph and LangChain dependencies
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-google-genai>=0.1.0
+
+# Telegram bot
 python-telegram-bot>=20.0
-crewai
-openai
-sqlite-utils
-python-dotenv 
-singleton_decorator 
-google-genai 
-neo4j
-langchain
-langchain-community
-langchain-core 
+
+# Database and storage
+neo4j>=5.0
+
+# Environment and utilities
+python-dotenv>=1.0
+singleton_decorator>=1.0
+
+# Google Gemini
+google-genai>=0.3.0
+
+# Optional: For enhanced logging and monitoring
+rich>=13.0
+pydantic>=2.0 

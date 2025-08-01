@@ -2,7 +2,7 @@ import os
 from neo4j import GraphDatabase, basic_auth
 from dotenv import load_dotenv
 from src.utils.logger import logger
-from src.utils.gemini_client import GeminiLLM
+from src.utils.gemini_client import gemini_chat_client
 
 load_dotenv()
 
@@ -12,7 +12,7 @@ class Neo4jStorageAgent:
         self.user = os.getenv("NEO4J_USER", "neo4j")
         self.password = os.getenv("NEO4J_PASSWORD", "changeme123")
         self.driver = GraphDatabase.driver(self.uri, auth=basic_auth(self.user, self.password))
-        self.llm = GeminiLLM()
+        # Using the global gemini_chat_client instance
         self.schema = (
             "Schema:\n"
             "(:Transaction)-[:INVOLVES_PRODUCT]->(:Product)\n"
@@ -40,10 +40,14 @@ class Neo4jStorageAgent:
             f"User request: '{user_message}'"
         )
         logger.info("Prompting Gemini for Cypher query generation.")
-        cypher_response = self.llm.chat(prompt, context)
+        cypher_response = gemini_chat_client.send_message(
+            user_id="system",  # Use system user for database operations
+            message=prompt,
+            system_instruction="You are a business graph database assistant. Generate Cypher queries only."
+        )
         logger.info("Gemini responded with Cypher query.")
         cypher_query = self._extract_cypher_from_code_block(cypher_response)
-        logger.info(f"Executing Cypher: {cypher_query}")
+        # logger.info(f"Executing Cypher: {cypher_query}")
         with self.driver.session() as session:
             try:
                 result = session.run(cypher_query)

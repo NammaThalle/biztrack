@@ -1,35 +1,50 @@
 # Business Tracker Bot
 
-A sophisticated Telegram bot for business transaction tracking using CrewAI, Neo4j, and LangChain memory.
+A sophisticated Telegram bot for business transaction tracking using **LangGraph**, **Neo4j**, and **Gemini's automatic chat sessions**.
+
+## 🚀 **Architecture**
+
+The Business Tracker Bot uses **LangGraph** with automatic memory management through **Gemini's chat sessions**.
+
+### **Key Features:**
+- ✅ **Automatic Memory**: Messages stored in Gemini chat sessions
+- ✅ **Response Formatting**: Raw data → LLM formatting → User-friendly output
+- ✅ **Telegram Integration**: Rich MarkdownV2 formatting
+- ✅ **Graph Database**: Neo4j for business relationships
+- ✅ **Error Handling**: Graceful fallbacks for all operations
 
 ## Project Structure
 
 ```
 crew-ai-chatbot/
-├── main.py                          # Entry point
-├── requirements.txt                  # Dependencies
+├── main.py                          # Business Tracker Bot entry point
+├── requirements.txt                  # Bot dependencies
 ├── docker-compose.yml               # Neo4j Docker setup
 ├── .env                             # Environment variables
 ├── README.md                        # This file
+├── workflow_diagram.md              # Workflow documentation
 ├── src/                             # Source code
 │   ├── __init__.py
-│   ├── orchestrator.py              # Main orchestration logic
-│   ├── agents/                      # CrewAI agents
+│   ├── graph/                       # LangGraph workflow
 │   │   ├── __init__.py
-│   │   └── business_agents.py       # Business logic agents
-│   ├── memory/                      # Memory management
+│   │   ├── state.py                 # State management
+│   │   └── workflow.py              # Main workflow
+│   ├── agents/                      # LangGraph agents
 │   │   ├── __init__.py
-│   │   └── conversation_memory.py   # LangChain memory system
+│   │   └── intent_agent.py          # Intent detection
+│   ├── tools/                       # LangChain tools
+│   │   ├── __init__.py
+│   │   └── graph_tools.py           # Database operations
 │   ├── storage/                     # Data storage
 │   │   ├── __init__.py
-│   │   ├── graph_storage.py         # Neo4j operations
-│   │   └── sqlite_storage.py        # SQLite operations (legacy)
+│   │   └── graph_storage.py         # Neo4j operations
 │   ├── config/                      # Configuration
 │   │   ├── __init__.py
 │   │   └── bot_config.py            # Bot configuration
 │   └── utils/                       # Utilities
 │       ├── __init__.py
-│       ├── gemini_client.py         # Gemini API client
+│       ├── gemini_client.py          # Main Gemini client
+│       ├── cleanup.py                # Cache cleanup utilities
 │       └── logger.py                # Logging utilities
 ├── tests/                           # Test files
 └── docs/                            # Documentation
@@ -37,26 +52,26 @@ crew-ai-chatbot/
 
 ## Features
 
-### 🤖 Multi-Agent Architecture (CrewAI)
-- **IntentDetectionAgent**: Automatically identifies user intent
-- **TransactionExtractionAgent**: Extracts structured data from messages
-- **KnowledgeQAAgent**: Answers business questions using RAG
-- **StorageAgent**: Manages data persistence
-- **ChatAgent**: Handles conversational responses
+### 🤖 **Workflow Architecture**
+- **Intent Detection**: Automatic intent recognition using Gemini
+- **Conditional Routing**: Smart routing based on user intent
+- **Tool Integration**: LangChain tools for database operations
+- **Response Formatting**: LLM-powered response formatting
+- **State Management**: Centralized state management
 
-### 💾 Advanced Memory System (LangChain)
-- **ConversationBufferMemory**: Maintains conversation history
-- **SQLChatMessageHistory**: Persistent SQL storage
-- **Context-Aware Responses**: Uses conversation history for better responses
-- **User-Specific Memory**: Each user has isolated memory
+### 💾 **Memory System (Gemini)**
+- **Chat Sessions**: Automatic message storage in Gemini
+- **Context Preservation**: Full conversation history available
+- **No Manual Storage**: Eliminates complex memory management
+- **User Isolation**: Each user has isolated chat sessions
 
-### 🗄️ Graph Database (Neo4j)
+### 🗄️ **Graph Database (Neo4j)**
 - **Transaction Nodes**: Purchase, sale, commission records
 - **Entity Nodes**: Products, vendors, customers
 - **Relationships**: Tracks business relationships
 - **LLM-Driven Queries**: Dynamic Cypher generation
 
-### 🔧 Key Capabilities
+### 🔧 **Key Capabilities**
 - **Natural Language Processing**: No explicit commands needed
 - **Business Tracking**: Log purchases, sales, commissions
 - **Product Management**: Add and track products
@@ -104,13 +119,13 @@ User: "Hi"
 Bot: "Hello! How can I help you today?"
 
 User: "Add product ortho kit price 500"
-Bot: "Product 'ortho kit' added with price 500."
+Bot: "**Product Added Successfully!**\n\n• **ortho kit** - ₹500\n\nYour product has been added to the database."
 
 User: "Bought ortho kits for 5000 from sajan"
-Bot: "Logged purchase of ortho kits for 5000 from sajan."
+Bot: "**Transaction Logged!**\n\n• **Purchase**: ortho kits\n• **Amount**: ₹5000\n• **Vendor**: Sajan Ohol\n\nTransaction has been recorded successfully."
 
 User: "Show me all products"
-Bot: "Here are your products: [list of products]"
+Bot: "**Your Products:**\n\n• **ortho success** - ₹700\n• **ortho kits** - ₹500\n\nYou have 2 products in your database."
 ```
 
 ### Context-Aware Responses
@@ -119,49 +134,49 @@ User: "Add the same product"
 Bot: "I'll add another ortho kit for you." (remembers last product)
 
 User: "How much did I pay sajan?"
-Bot: "You paid 5000 to sajan for ortho kits." (remembers vendor and amount)
+Bot: "You paid ₹5000 to Sajan Ohol for ortho kits." (remembers vendor and amount)
 ```
 
 ## Architecture Highlights
 
-### Memory System
-- **LangChain Integration**: Uses proven conversation memory
-- **SQL Persistence**: Reliable database storage
-- **Context Window**: Last 10 messages for context
-- **User Isolation**: Each user has separate memory
+### **Workflow Design**
+- **State-Driven**: Centralized state management with AgentState
+- **Conditional Routing**: Smart routing based on intent
+- **Tool Integration**: Clean tool-based architecture
+- **Error Handling**: Better error handling and recovery
 
-### Agent Orchestration
-- **Intent Detection**: Autonomous action routing
-- **Entity Extraction**: Structured data parsing
-- **Graph Operations**: LLM-driven Neo4j queries
-- **Response Formatting**: User-friendly output
+### **Memory System**
+- **Gemini Integration**: Uses proven chat session functionality
+- **No Manual Storage**: Eliminates complex SQL operations
+- **Context Window**: Full conversation history available
+- **User Isolation**: Each user has separate chat sessions
 
-### Data Storage
-- **Neo4j Graph**: Business relationships and analytics
-- **SQLite Legacy**: Backup storage (deprecated)
-- **Memory Database**: Conversation history
+### **Response Formatting**
+- **LLM Processing**: Raw data → LLM formatting → User-friendly output
+- **Telegram Optimized**: Uses MarkdownV2 for rich formatting
+- **Error Fallbacks**: Graceful handling of formatting failures
 
 ## Development
 
 ### Adding New Features
-1. **Agents**: Add to `src/agents/business_agents.py`
-2. **Storage**: Add to `src/storage/` directory
-3. **Memory**: Extend `src/memory/conversation_memory.py`
+1. **Tools**: Add to `src/tools/` directory
+2. **Agents**: Add to `src/agents/` directory
+3. **Workflow**: Update `src/graph/workflow.py`
 4. **Configuration**: Update `src/config/bot_config.py`
 
 ### Testing
 ```bash
-# Run tests
-python -m pytest tests/
+# Run the Business Tracker Bot
+python main.py
 
-# Test memory system
-python -c "from src.memory.conversation_memory import langchain_memory_manager; print('Memory system working')"
+# Test memory functionality
+python -c "from src.utils.gemini_client import gemini_chat_client; print('Gemini client working')"
 ```
 
 ## Dependencies
 
-- **CrewAI**: Multi-agent orchestration
-- **LangChain**: Memory and conversation management
+- **LangGraph**: Workflow orchestration
+- **LangChain**: Tools and agents
 - **Neo4j**: Graph database
 - **python-telegram-bot**: Telegram integration
 - **google-genai**: Gemini API client

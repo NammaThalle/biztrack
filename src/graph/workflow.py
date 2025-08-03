@@ -20,44 +20,78 @@ class BusinessWorkflow:
         self.analytics_tool = BusinessAnalyticsTool()
         
     def create_workflow(self):
-        """Create the main workflow graph"""
+        """Create the optimized workflow graph with unified processing"""
         workflow = StateGraph(AgentState)
         
-        # Add nodes
-        workflow.add_node("intent_detection", self.intent_detection_node)
-        workflow.add_node("graph_operation", self.graph_operation_node)
-        workflow.add_node("add_product_operation", self.add_product_operation_node)
-        workflow.add_node("log_transaction_operation", self.log_transaction_operation_node)
-        workflow.add_node("analytics_operation", self.analytics_operation_node)
-        workflow.add_node("format_response", self.format_response_node)
-        workflow.add_node("chat_response", self.chat_response_node)
+        # Add nodes - simplified workflow with unified processing
+        workflow.add_node("unified_processing", self.unified_processing_node)
+        workflow.add_node("fallback_processing", self.fallback_processing_node)
         
-        # Define edges
-        workflow.add_edge(START, "intent_detection")
+        # Define edges - much simpler flow
+        workflow.add_edge(START, "unified_processing")
         
-        # Add conditional edges based on intent
+        # Add conditional edge for fallback if needed
         workflow.add_conditional_edges(
-            "intent_detection",
-            self.route_to_action,
+            "unified_processing",
+            self.check_processing_result,
             {
-                "graph_query": "graph_operation",
-                "add_product": "add_product_operation", 
-                "log_transaction": "log_transaction_operation",
-                "analytics": "analytics_operation",
-                "chat": "chat_response",
-                "qa": "chat_response"
+                "complete": END,
+                "fallback": "fallback_processing"
             }
         )
         
-        # Connect operations to response formatting, then to final response
-        workflow.add_edge("graph_operation", "format_response")
-        workflow.add_edge("add_product_operation", "format_response")
-        workflow.add_edge("log_transaction_operation", "format_response")
-        workflow.add_edge("analytics_operation", "format_response")
-        workflow.add_edge("format_response", "chat_response")
-        workflow.add_edge("chat_response", END)
+        workflow.add_edge("fallback_processing", END)
         
         return workflow.compile()
+    
+    def unified_processing_node(self, state: AgentState) -> AgentState:
+        """
+        Unified processing node that handles intent detection and action execution in one step.
+        This replaces the multi-step workflow with a single optimized LLM call.
+        """
+        logger.info(f"Processing unified request for user {state.user_id}")
+        return self.intent_agent.detect_intent_and_execute(state)
+    
+    def check_processing_result(self, state: AgentState) -> str:
+        """Check if unified processing was successful or needs fallback"""
+        if state.response and not state.error:
+            return "complete"
+        else:
+            logger.warning(f"Unified processing incomplete for user {state.user_id}, using fallback")
+            return "fallback"
+    
+    def fallback_processing_node(self, state: AgentState) -> AgentState:
+        """Fallback to original workflow if unified processing fails"""
+        try:
+            logger.info(f"Using fallback processing for user {state.user_id}")
+            
+            # Use the original intent detection if unified failed
+            state = self.intent_agent.detect_intent(state)
+            
+            # Route to appropriate tool based on intent
+            intent = state.intent
+            if intent == "graph_query":
+                state = self.graph_operation_node(state)
+                state = self.format_response_node(state)
+            elif intent == "add_product":
+                state = self.add_product_operation_node(state)
+                state = self.format_response_node(state)
+            elif intent == "log_transaction":
+                state = self.log_transaction_operation_node(state)
+                state = self.format_response_node(state)
+            elif intent in ["analytics", "report"]:
+                state = self.analytics_operation_node(state)
+                state = self.format_response_node(state)
+            else:
+                state = self.chat_response_node(state)
+            
+            return state
+            
+        except Exception as e:
+            logger.error(f"Error in fallback processing for user {state.user_id}: {e}")
+            state.set_error(f"Fallback processing error: {str(e)}")
+            state.update_response("I'm sorry, there was an error processing your request. Please try again.")
+            return state
     
     def intent_detection_node(self, state: AgentState) -> AgentState:
         """Intent detection node"""

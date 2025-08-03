@@ -39,25 +39,8 @@ class BusinessTrackerBot:
             # Send response with MarkdownV2 formatting
             response_text = result.get('response') or "I'm sorry, I couldn't process your request."
             
-            # Try to send with MarkdownV2 formatting, fallback to plain text if it fails
-            try:
-                await update.message.reply_text(
-                    response_text,
-                    parse_mode='MarkdownV2'
-                )
-            except Exception as format_error:
-                logger.warning(f"MarkdownV2 formatting failed, sending as plain text: {format_error}")
-                # Escape special characters for MarkdownV2 and try again, or send as plain text
-                try:
-                    # Simple escape for common Markdown characters
-                    escaped_text = response_text.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
-                    await update.message.reply_text(
-                        escaped_text,
-                        parse_mode='MarkdownV2'
-                    )
-                except Exception:
-                    # Final fallback to plain text
-                    await update.message.reply_text(response_text)
+            # Send as plain text since we're not using markdown formatting anymore
+            await update.message.reply_text(response_text)
             
             logger.info(f"Sent response to user {user_id}")
             

@@ -1,0 +1,159 @@
+{
+    "name": "Simple Telegram Bot",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "message"
+                ]
+            },
+            "id": "1",
+            "name": "Telegram Trigger",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "1",
+                            "name": "userMessage",
+                            "value": "={{ $json.message.text }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "2",
+                            "name": "chatId",
+                            "value": "={{ $json.message.chat.id }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "2",
+            "name": "Extract Data",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "text": "=You are a helpful assistant. Respond to: {{ $json.userMessage }}",
+                "promptType": "define"
+            },
+            "id": "3",
+            "name": "AI Response",
+            "type": "@n8n/n8n-nodes-langchain.chainLlm",
+            "typeVersion": 1.6,
+            "position": [
+                680,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-2.0-flash-001"
+            },
+            "id": "4",
+            "name": "Gemini Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                700,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = $input.first().json.response || '';\ntext = text.replace(/[<>&\"*]/g, '').trim();\nreturn { cleanText: text };"
+            },
+            "id": "5",
+            "name": "Clean Text",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "text": "={{ $json.cleanText }}",
+                "chatId": "={{ $('Extract Data').item.json.chatId }}"
+            },
+            "id": "6",
+            "name": "Send Message",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Telegram Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Data": {
+            "main": [
+                [
+                    {
+                        "node": "AI Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Response": {
+            "main": [
+                [
+                    {
+                        "node": "Clean Text",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Clean Text": {
+            "main": [
+                [
+                    {
+                        "node": "Send Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Response",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
